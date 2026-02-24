@@ -184,7 +184,7 @@ In this section, we will flag potentially fraudulent transactions using four met
 - Distance between the first transaction and subsequent locations within a time window.
 - Combination of the average-amount and distance-based methods.
 
-1. Simple
+1. The first and simplest way to flag a potentially fraudulent transaction is to mark every transaction that exceeds a certain monetary threshold. In the example below, I created a Flink query to flag every transaction above 10 million Indonesian Rupiah and send it to a separate topic called "simple_fraud_detection":  
 ```
 --Mark the transaction as fraud if the transaction amount exceeds 10 million Indonesian Rupiah.
 CREATE TABLE simple_fraud_detection AS
@@ -192,10 +192,15 @@ SELECT *
 FROM transactions_topic_rekeyed
 WHERE amount_idr > 10000000;
 ```
-To show the result:
+To view the flagged transactions, you can run the following query:
 ```
 SELECT * FROM simple_fraud_detection;
 ```
+While the query is fairly simple, it comes with several drawbacks, such as:
+- It marks every large transaction as fraudulent.
+- It does not account for different customer segments.
+- It requires significant research to determine the optimal threshold.
+
 2. Average
 ```
 --Mark the transaction as fraud if the transaction amount exceeds 1.5 times the average transaction amount in the last 30 days.
