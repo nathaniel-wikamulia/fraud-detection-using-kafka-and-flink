@@ -174,3 +174,232 @@ SELECT
   $rowtime as event_time
 FROM transactions_topic;
 ```
+
+## Section 8 - Perform Fraud Detection
+Once you have populated the "transactions_topic_rekeyed" topic, you can proceed to deploy the fraud detection queries.
+
+In this section, we will flag potentially fraudulent transactions using four methods:
+- Simple transaction amount threshold.
+- Average transaction value over the last 30 days.
+- Distance between the first transaction and subsequent locations within a time window.
+- Combination of the average-amount and distance-based methods.
+
+1. Simple
+```
+--Mark the transaction as fraud if the transaction amount exceeds 10 million Indonesian Rupiah.
+CREATE TABLE simple_fraud_detection AS
+SELECT *
+FROM transactions_topic_rekeyed
+WHERE amount_idr > 10000000;
+```
+To show the result:
+```
+SELECT * FROM simple_fraud_detection;
+```
+2. Average
+```
+--Mark the transaction as fraud if the transaction amount exceeds 1.5 times the average transaction amount in the last 30 days.
+CREATE TABLE average_fraud_detection AS
+SELECT
+  *
+FROM (
+  SELECT
+    t.*,
+    AVG(amount_idr) OVER (
+      PARTITION BY card_id
+      ORDER BY event_time
+      RANGE BETWEEN INTERVAL '30' DAY PRECEDING AND CURRENT ROW
+    ) AS avg_amount_card_last_30d
+  FROM transactions_topic_rekeyed AS t
+)
+WHERE amount_idr > 2.5 * avg_amount_card_last_30d;
+```
+To show the result:
+```
+SELECT * FROM average_fraud_detection;
+```
+3. Distance
+```
+--Mark the transaction as fraud if within a 5‑minute window, a transaction happened more than 500 km away from that card’s first transaction location.
+CREATE TABLE distance_fraud_detection AS
+WITH base_windowed AS (
+  SELECT
+    transaction_id,
+    card_id,
+    latitude,
+    longitude,
+    amount_idr,
+    event_time,
+    window_start,
+    window_end
+  FROM TABLE(
+    TUMBLE(
+      TABLE transactions_topic_rekeyed,
+      DESCRIPTOR(event_time),
+      INTERVAL '5' MINUTE
+    )
+  )
+),
+first_tx AS (
+  SELECT
+    card_id,
+    window_start,
+    window_end,
+    latitude  AS first_latitude,
+    longitude AS first_longitude
+  FROM (
+    SELECT
+      card_id,
+      window_start,
+      window_end,
+      latitude,
+      longitude,
+      ROW_NUMBER() OVER (
+        PARTITION BY card_id, window_start, window_end
+        ORDER BY event_time
+      ) AS rn
+    FROM base_windowed
+  )
+  WHERE rn = 1
+),
+joined AS (
+  SELECT
+    b.transaction_id,
+    b.card_id,
+    b.latitude,
+    b.longitude,
+    b.amount_idr,
+    b.event_time,
+    b.window_start,
+    b.window_end,
+    6371 * 2 * ASIN(
+      SQRT(
+        POWER(SIN((RADIANS(b.latitude) - RADIANS(f.first_latitude)) / 2), 2) +
+        COS(RADIANS(f.first_latitude)) * COS(RADIANS(b.latitude)) *
+        POWER(SIN((RADIANS(b.longitude) - RADIANS(f.first_longitude)) / 2), 2)
+      )
+    ) AS distance_km
+  FROM base_windowed b
+  JOIN first_tx f
+    ON b.card_id     = f.card_id
+   AND b.window_start = f.window_start
+   AND b.window_end   = f.window_end
+)
+SELECT
+  transaction_id,
+  card_id,
+  latitude,
+  longitude,
+  amount_idr,
+  event_time,
+  window_start,
+  window_end,
+  distance_km
+FROM joined
+WHERE distance_km > 1000;  -- adjust threshold (km) as needed
+```
+To show the result:
+```
+SELECT * FROM distance_fraud_detection;
+```  
+4. Combination
+```
+CREATE TABLE distance_and_average_fraud_detection AS
+WITH avg_enriched AS (
+  -- Per-card rolling 30‑day average
+  SELECT
+    t.*,
+    AVG(amount_idr) OVER (
+      PARTITION BY card_id
+      ORDER BY event_time
+      RANGE BETWEEN INTERVAL '30' DAY PRECEDING AND CURRENT ROW
+    ) AS avg_amount_card_last_30d
+  FROM transactions_topic_rekeyed AS t
+),
+base_windowed AS (
+  -- 5‑minute tumbling windows per event_time
+  SELECT
+    transaction_id,
+    card_id,
+    latitude,
+    longitude,
+    amount_idr,
+    event_time,
+    avg_amount_card_last_30d,
+    window_start,
+    window_end
+  FROM TABLE(
+    TUMBLE(
+      TABLE avg_enriched,
+      DESCRIPTOR(event_time),
+      INTERVAL '5' MINUTE
+    )
+  )
+),
+first_tx AS (
+  -- First tx per card + window → reference location
+  SELECT
+    card_id,
+    window_start,
+    window_end,
+    latitude  AS first_latitude,
+    longitude AS first_longitude
+  FROM (
+    SELECT
+      card_id,
+      window_start,
+      window_end,
+      latitude,
+      longitude,
+      ROW_NUMBER() OVER (
+        PARTITION BY card_id, window_start, window_end
+        ORDER BY event_time
+      ) AS rn
+    FROM base_windowed
+  )
+  WHERE rn = 1
+),
+joined AS (
+  -- Compute distance from first tx in the 5‑minute window
+  SELECT
+    b.transaction_id,
+    b.card_id,
+    b.latitude,
+    b.longitude,
+    b.amount_idr,
+    b.event_time,
+    b.window_start,
+    b.window_end,
+    b.avg_amount_card_last_30d,
+    6371 * 2 * ASIN(
+      SQRT(
+        POWER(SIN((RADIANS(b.latitude) - RADIANS(f.first_latitude)) / 2), 2) +
+        COS(RADIANS(f.first_latitude)) * COS(RADIANS(b.latitude)) *
+        POWER(SIN((RADIANS(b.longitude) - RADIANS(f.first_longitude)) / 2), 2)
+      )
+    ) AS distance_km
+  FROM base_windowed b
+  JOIN first_tx f
+    ON b.card_id      = f.card_id
+   AND b.window_start = f.window_start
+   AND b.window_end   = f.window_end
+)
+SELECT
+  transaction_id,
+  card_id,
+  latitude,
+  longitude,
+  amount_idr,
+  event_time,
+  window_start,
+  window_end,
+  distance_km,
+  avg_amount_card_last_30d
+FROM joined
+WHERE distance_km > 1000
+  AND amount_idr > 2 * avg_amount_card_last_30d;
+```
+To show the result:
+```
+SELECT * FROM distance_and_average_fraud_detection;
+```  
