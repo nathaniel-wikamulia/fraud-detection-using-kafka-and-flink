@@ -126,3 +126,51 @@ To create the connector, follow the steps below:
 6. Change the "Max interval between messages (ms)" to "10000", then click on the "Continue" button at the bottom right of the screen.
 7. Leave the number of connector tasks as "1", then click the "Continue" button at the bottom right of the screen.
 8. Write "transaction_data_connector" in the "Connector name" text box, then click the "Continue" button at the bottom right of the screen.
+
+## Section 5 - Create a Flink Compute Pool
+Now that the "transactions_topic" topic is filled with messages, we can start creating a Flink compute pool.
+
+A Flink compute pool in Confluent Cloud for Apache Flink represents a set of compute resources bound to a region that is used to run your SQL statements. The resources provided by a compute pool are shared between all statements that use it. The capacity of a compute pool is measured in CFUs.
+To create an Flink compute pool, you can follow the steps below:
+1. In the left-hand menu, select "Flink".
+2. Click the "Add compute pool" button on the right side of the page.
+3. Choose your preferred cloud provider. For this workshop, we'll use "Azure", and for the region, we'll choose Jakarta. Please note that the Flink compute pool must match the Kafka cluster's region.
+4. Enter a name for your compute pool. For this workshop, we’ll use "fraud_detection_flink_compute_pool".
+5. Set the "Max size" value to 10 CFU.
+6. Click the "Create" button to create your compute pool.
+
+## Section 6 - Prepare a Flink Workspace
+Once the Flink compute pool has been provisioned, you can setup a Flink SQL workspace where you will be writing your Flink queries. Follow the steps below to get started:
+1. Click the "Open SQL workspace" button on the right side of the page.
+2. Open the "Catalog" dropdown in the top-right corner and select "demo_environment" to access your previously provisioned environment.
+3. Open the "Database" dropdown in the top right corner and choose "fraud_detection_cluster" to access your previously provisioned Kafka cluster.
+
+## Section 7 - Transforming a Kafka Topic into a Flink-managed Table:
+In this section, we will transform the "transactions_topic" Kafka topic into a Flink-managed table. Raw Kafka topics such as the "transactions_topic" needs to be transformed into Flink-managed tables with proper primary keys, event-time processing, and watermarks to ensure that downstream operations, such as joins, aggregations, and windowed analyses, work correctly. To do that, follow the steps below:
+1. Paste the following Flink query into an empty cell to create a new table called the "transactions_topic_rekeyed":
+```
+CREATE TABLE transactions_topic_rekeyed (
+  transaction_id INT NOT NULL PRIMARY KEY NOT ENFORCED,
+  card_id STRING,
+  latitude FLOAT,
+  longitude FLOAT,
+  amount_idr FLOAT,
+  event_time TIMESTAMP_LTZ(3) METADATA FROM 'timestamp',
+  WATERMARK FOR event_time AS event_time - INTERVAL '5' SECOND
+) DISTRIBUTED BY (transaction_id) INTO 1 BUCKETS
+WITH (
+  'changelog.mode' = 'append'
+);
+```
+2. Insert the existing data from "transactions_topic" into the new "transactions_topic_rekeyed" table using the following Flink query:
+```
+INSERT INTO transactions_topic_rekeyed
+SELECT
+  transaction_id,
+  card_id,
+  latitude,
+  longitude,
+  amount_idr,
+  $rowtime as event_time
+FROM transactions_topic;
+```
