@@ -201,9 +201,11 @@ While the query is fairly simple, it comes with several drawbacks, such as:
 - It does not account for different customer segments.
 - It requires significant research to determine the optimal threshold.
 
-2. Average
+2. The second method tries to overcome the limitation of the first method by flagging a transaction as potentially fraudulent only when the transaction amount is greater than X times the average transaction amount. By calculating the average transaction amount for each customer, the algorithm becomes much more flexible and does not flag every large transaction as fraudulent. It can also adjust itself based on the customer’s transaction behavior.
+
+In this example, we will mark a transaction as fraudulent if the transaction amount exceeds 2.5 times the average transaction amount in the last 30 days:
 ```
---Mark the transaction as fraud if the transaction amount exceeds 1.5 times the average transaction amount in the last 30 days.
+--Mark the transaction as fraud if the transaction amount exceeds 2.5 times the average transaction amount in the last 30 days.
 CREATE TABLE average_fraud_detection AS
 SELECT
   *
@@ -219,13 +221,15 @@ FROM (
 )
 WHERE amount_idr > 2.5 * avg_amount_card_last_30d;
 ```
-To show the result:
+To view the flagged transactions, you can run the following query:
 ```
 SELECT * FROM average_fraud_detection;
 ```
-3. Distance
+3. While the second method can highlight anomalies that might indicate fraudulent transactions, there is another method that can help detect possible fraud: analyzing the transaction location. If a customer uses their card for payments in multiple distant locations within a short period of time, this could indicate a potentially fraudulent transaction.
+
+In this example, we will mark a transaction as possible fraud if, within a 5-minute window, the transaction occurs more than 1000 km away from that card’s first transaction location in the same window:
 ```
---Mark the transaction as fraud if within a 5‑minute window, a transaction happened more than 500 km away from that card’s first transaction location.
+--Mark the transaction as fraud if within a 5‑minute window, a transaction happened more than 1000 km away from that card’s first transaction location.
 CREATE TABLE distance_fraud_detection AS
 WITH base_windowed AS (
   SELECT
@@ -303,7 +307,7 @@ SELECT
 FROM joined
 WHERE distance_km > 1000;  -- adjust threshold (km) as needed
 ```
-To show the result:
+To view the flagged transactions, you can run the following query:
 ```
 SELECT * FROM distance_fraud_detection;
 ```  
@@ -404,7 +408,7 @@ FROM joined
 WHERE distance_km > 1000
   AND amount_idr > 2 * avg_amount_card_last_30d;
 ```
-To show the result:
+To view the flagged transactions, you can run the following query:
 ```
 SELECT * FROM distance_and_average_fraud_detection;
 ```  
