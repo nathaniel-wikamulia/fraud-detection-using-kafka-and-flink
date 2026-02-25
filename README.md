@@ -242,6 +242,7 @@ d = 2r \cdot \arcsin\left(
 $$
 
 Where:
+- $r$ = radius of the sphere
 - $\varphi_1$ = latitude of point 1  
 - $\varphi_2$ = latitude of point 2  
 - $\lambda_1$ = longitude of point 1  
