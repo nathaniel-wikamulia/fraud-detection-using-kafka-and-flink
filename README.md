@@ -175,7 +175,7 @@ SELECT
 FROM transactions_topic;
 ```
 
-## Section 8 - Perform Simple Fraud Detection
+## Section 8 - Perform Fraud Detection
 Once you have populated the "transactions_topic_rekeyed" topic, you can proceed to deploy the fraud detection queries.
 
 In this section, we will flag potentially fraudulent transactions using four methods:
@@ -184,6 +184,7 @@ In this section, we will flag potentially fraudulent transactions using four met
 - Distance between the first transaction and subsequent locations within a time window.
 - Combination of the average-amount and distance-based methods.
 
+### Section 8.1 - Perform Fraud Detection using the High-Value Threshold Rule
 The first and simplest way to flag a potentially fraudulent transaction is to mark every transaction that exceeds a certain monetary threshold. In the example below, I created a Flink query to flag every transaction above 10 million Indonesian Rupiah and send it to a separate topic called "simple_fraud_detection":  
 ```
 --Mark the transaction as fraud if the transaction amount exceeds 10 million Indonesian Rupiah.
