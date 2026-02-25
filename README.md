@@ -175,7 +175,7 @@ SELECT
 FROM transactions_topic;
 ```
 
-## Section 8 - Perform Fraud Detection
+## Section 8 - Perform Simple Fraud Detection
 Once you have populated the "transactions_topic_rekeyed" topic, you can proceed to deploy the fraud detection queries.
 
 In this section, we will flag potentially fraudulent transactions using four methods:
@@ -184,7 +184,7 @@ In this section, we will flag potentially fraudulent transactions using four met
 - Distance between the first transaction and subsequent locations within a time window.
 - Combination of the average-amount and distance-based methods.
 
-1. The first and simplest way to flag a potentially fraudulent transaction is to mark every transaction that exceeds a certain monetary threshold. In the example below, I created a Flink query to flag every transaction above 10 million Indonesian Rupiah and send it to a separate topic called "simple_fraud_detection":  
+The first and simplest way to flag a potentially fraudulent transaction is to mark every transaction that exceeds a certain monetary threshold. In the example below, I created a Flink query to flag every transaction above 10 million Indonesian Rupiah and send it to a separate topic called "simple_fraud_detection":  
 ```
 --Mark the transaction as fraud if the transaction amount exceeds 10 million Indonesian Rupiah.
 CREATE TABLE simple_fraud_detection AS
@@ -201,7 +201,8 @@ While the query is fairly simple, it comes with several drawbacks, such as:
 - It does not account for different customer segments.
 - It requires significant research to determine the optimal threshold.
 
-2. The second method tries to overcome the limitation of the first method by flagging a transaction as potentially fraudulent only when the transaction amount is greater than X times the average transaction amount. By calculating the average transaction amount for each customer, the algorithm becomes much more flexible and does not flag every large transaction as fraudulent. It can also adjust itself based on the customer’s transaction behavior.
+## Section 9 - Perform Average Fraud Detection
+The second method tries to overcome the limitation of the first method by flagging a transaction as potentially fraudulent only when the transaction amount is greater than X times the average transaction amount. By calculating the average transaction amount for each customer, the algorithm becomes much more flexible and does not flag every large transaction as fraudulent. It can also adjust itself based on the customer’s transaction behavior.
 
 In this example, we will mark a transaction as fraudulent if the transaction amount exceeds 2.5 times the average transaction amount in the last 30 days:
 ```
@@ -225,7 +226,8 @@ To view the flagged transactions, you can run the following query:
 ```
 SELECT * FROM average_fraud_detection;
 ```
-3. While the second method can highlight anomalies that might indicate fraudulent transactions, there is another method that can help detect possible fraud: analyzing the transaction location. If a customer uses their card for payments in multiple distant locations within a short period of time, this could indicate a potentially fraudulent transaction.
+## Section 10 - Perform Distance Fraud Detection
+While the second method can highlight anomalies that might indicate fraudulent transactions, there is another method that can help detect possible fraud: analyzing the transaction location. If a customer uses their card for payments in multiple distant locations within a short period of time, this could indicate a potentially fraudulent transaction.
 
 In this example, we will mark a transaction as possible fraud if, within a 5-minute window, the transaction occurs more than 1000 km away from that card’s first transaction location in the same window:
 ```
@@ -310,7 +312,8 @@ WHERE distance_km > 1000;  -- adjust threshold (km) as needed
 To view the flagged transactions, you can run the following query:
 ```
 SELECT * FROM distance_fraud_detection;
-```  
+```
+## Section 11 - Perform Combination Fraud Detection
 4. Combination
 ```
 CREATE TABLE distance_and_average_fraud_detection AS
