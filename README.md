@@ -228,7 +228,25 @@ To view the flagged transactions, you can run the following query:
 SELECT * FROM average_fraud_detection;
 ```
 ### Section 8.3 - Perform Fraud Detection using the Improbable Travel Distance Rule
-While the second method can highlight anomalies that might indicate fraudulent transactions, there is another method that can help detect possible fraud: analyzing the transaction location. If a customer uses their card for payments in multiple distant locations within a short period of time, this could indicate a potentially fraudulent transaction.
+While the second method can highlight anomalies that might indicate fraudulent transactions, there is another method that can help detect possible fraud: analyzing the transaction location. If a customer uses their card for payments in multiple distant locations within a short period of time, this could indicate a potentially fraudulent transaction. In this example, we will apply a 5-minute tumbling window to analyze short-term location changes. Within each window, we identify the first transaction per card as the reference location. Next, we calculate the geographic distance between each transaction and that reference point using the Haversine formula. The Haversine formula is a mathematical formula used to calculate the great-circle distance between two points on the surface of a sphere using their latitude and longitude coordinates. It is commonly used to measure the distance between two locations on Earth, accounting for the planet’s curvature. The equation is shown below:
+
+$$
+d = 2r \cdot \arcsin\left(
+\sqrt{
+\sin^2\left(\frac{\varphi_2 - \varphi_1}{2}\right)
++
+\cos(\varphi_1)\cos(\varphi_2)
+\sin^2\left(\frac{\lambda_2 - \lambda_1}{2}\right)
+}
+\right)
+$$
+
+Where:
+- $\varphi_1$ = latitude of point 1  
+- $\varphi_2$ = latitude of point 2  
+- $\lambda_1$ = longitude of point 1  
+- $\lambda_2$ = longitude of point 2  
+
 
 In this example, we will mark a transaction as possible fraud if, within a 5-minute window, the transaction occurs more than 1000 km away from that card’s first transaction location in the same window:
 ```
@@ -317,24 +335,7 @@ SELECT * FROM distance_fraud_detection;
 ### Section 8.4 - Perform Fraud Detection using the Combined Anomaly Rule
 While the previous methods detect fraud based on either abnormal transaction amounts or suspicious transaction locations, this approach combines both indicators to increase detection accuracy. A transaction is more likely to be fraudulent if it is not only unusually large compared to the customer’s historical spending behavior, but also occurs far away from the customer’s recent transaction location within a short period of time.
 
-In this example, we enrich each transaction with the card’s rolling 30-day average transaction amount. We then apply a 5-minute tumbling window to analyze short-term location changes. Within each window, we identify the first transaction per card as the reference location. Next, we calculate the geographic distance between each transaction and that reference point using the Haversine formula:
-
-$$
-d = 2r \cdot \arcsin\left(
-\sqrt{
-\sin^2\left(\frac{\varphi_2 - \varphi_1}{2}\right)
-+
-\cos(\varphi_1)\cos(\varphi_2)
-\sin^2\left(\frac{\lambda_2 - \lambda_1}{2}\right)
-}
-\right)
-$$
-
-Where:
-- $\varphi_1$ = latitude of point 1  
-- $\varphi_2$ = latitude of point 2  
-- $\lambda_1$ = longitude of point 1  
-- $\lambda_2$ = longitude of point 2  
+In this example, we enrich each transaction with the card’s rolling 30-day average transaction amount. We then apply a 5-minute tumbling window to analyze short-term location changes. Within each window, we identify the first transaction per card as the reference location. Next, we calculate the geographic distance between each transaction and that reference point using the Haversine formula.
 
 Finally, we flag a transaction as potentially fraudulent only if both of the following conditions are met:
 - The transaction occurs more than 1000 km away from the first transaction location within the same 5-minute window.
