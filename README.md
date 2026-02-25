@@ -179,10 +179,10 @@ FROM transactions_topic;
 Once you have populated the "transactions_topic_rekeyed" topic, you can proceed to deploy the fraud detection queries.
 
 In this section, we will flag potentially fraudulent transactions using four methods:
-- Simple transaction amount threshold.
-- Average transaction value over the last 30 days.
-- Distance between the first transaction and subsequent locations within a time window.
-- Combination of the average-amount and distance-based methods.
+- High-Value Threshold Rule
+- Spending Pattern Rule
+- Improbable Travel Distance Rule
+- Combined Anomaly Rule
 
 ### Section 8.1 - Perform Fraud Detection using the High-Value Threshold Rule
 The first and simplest way to flag a potentially fraudulent transaction is to mark every transaction that exceeds a certain monetary threshold. In the example below, I created a Flink query to flag every transaction above 10 million Indonesian Rupiah and send it to a separate topic called "simple_fraud_detection":  
@@ -202,7 +202,7 @@ While the query is fairly simple, it comes with several drawbacks, such as:
 - It does not account for different customer segments.
 - It requires significant research to determine the optimal threshold.
 
-## Section 9 - Perform Average Fraud Detection
+### Section 8.2 - Perform Fraud Detection using the Spending Pattern Rule
 The second method tries to overcome the limitation of the first method by flagging a transaction as potentially fraudulent only when the transaction amount is greater than X times the average transaction amount. By calculating the average transaction amount for each customer, the algorithm becomes much more flexible and does not flag every large transaction as fraudulent. It can also adjust itself based on the customer’s transaction behavior.
 
 In this example, we will mark a transaction as fraudulent if the transaction amount exceeds 2.5 times the average transaction amount in the last 30 days:
@@ -227,7 +227,7 @@ To view the flagged transactions, you can run the following query:
 ```
 SELECT * FROM average_fraud_detection;
 ```
-## Section 10 - Perform Distance Fraud Detection
+### Section 8.3 - Perform Fraud Detection using the Improbable Travel Distance Rule
 While the second method can highlight anomalies that might indicate fraudulent transactions, there is another method that can help detect possible fraud: analyzing the transaction location. If a customer uses their card for payments in multiple distant locations within a short period of time, this could indicate a potentially fraudulent transaction.
 
 In this example, we will mark a transaction as possible fraud if, within a 5-minute window, the transaction occurs more than 1000 km away from that card’s first transaction location in the same window:
@@ -314,8 +314,27 @@ To view the flagged transactions, you can run the following query:
 ```
 SELECT * FROM distance_fraud_detection;
 ```
-## Section 11 - Perform Combination Fraud Detection
-4. Combination
+### Section 8.4 - Perform Fraud Detection using the Combined Anomaly Rule
+While the previous methods detect fraud based on either abnormal transaction amounts or suspicious transaction locations, this approach combines both indicators to increase detection accuracy. A transaction is more likely to be fraudulent if it is not only unusually large compared to the customer’s historical spending behavior, but also occurs far away from the customer’s recent transaction location within a short period of time.
+
+In this example, we enrich each transaction with the card’s rolling 30-day average transaction amount. We then apply a 5-minute tumbling window to analyze short-term location changes. Within each window, we identify the first transaction per card as the reference location. Next, we calculate the geographic distance between each transaction and that reference point using the Haversine formula:
+
+$$
+d = 2r \cdot \arcsin\left(
+\sqrt{
+\sin^2\left(\frac{\varphi_2 - \varphi_1}{2}\right)
++
+\cos(\varphi_1)\cos(\varphi_2)
+\sin^2\left(\frac{\lambda_2 - \lambda_1}{2}\right)
+}
+\right)
+$$
+
+Finally, we flag a transaction as potentially fraudulent only if both of the following conditions are met:
+- The transaction occurs more than 1000 km away from the first transaction location within the same 5-minute window.
+- The transaction amount is greater than 2 times the card’s average transaction amount over the last 30 days.
+
+By combining behavioral (spending pattern) and geographical (impossible travel) anomalies, this method reduces false positives and provides a stronger fraud detection signal compared to using either method independently.
 ```
 CREATE TABLE distance_and_average_fraud_detection AS
 WITH avg_enriched AS (
@@ -410,7 +429,7 @@ SELECT
   avg_amount_card_last_30d
 FROM joined
 WHERE distance_km > 1000
-  AND amount_idr > 2 * avg_amount_card_last_30d;
+  AND amount_idr > 2.5 * avg_amount_card_last_30d;
 ```
 To view the flagged transactions, you can run the following query:
 ```
