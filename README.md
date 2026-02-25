@@ -330,6 +330,12 @@ d = 2r \cdot \arcsin\left(
 \right)
 $$
 
+Where:
+- $\varphi_1$ = latitude of point 1  
+- $\varphi_2$ = latitude of point 2  
+- $\lambda_1$ = longitude of point 1  
+- $\lambda_2$ = longitude of point 2  
+
 Finally, we flag a transaction as potentially fraudulent only if both of the following conditions are met:
 - The transaction occurs more than 1000 km away from the first transaction location within the same 5-minute window.
 - The transaction amount is greater than 2 times the card’s average transaction amount over the last 30 days.
