@@ -340,7 +340,7 @@ Finally, we flag a transaction as potentially fraudulent only if both of the fol
 - The transaction occurs more than 1000 km away from the first transaction location within the same 5-minute window.
 - The transaction amount is greater than 2 times the card’s average transaction amount over the last 30 days.
 
-By combining behavioral (spending pattern) and geographical (impossible travel) anomalies, this method reduces false positives and provides a stronger fraud detection signal compared to using either method independently.
+By combining behavioral (spending pattern) and geographical (improbable travel distance) anomalies, this method reduces false positives and provides a stronger fraud detection signal compared to using either method independently.
 ```
 CREATE TABLE distance_and_average_fraud_detection AS
 WITH avg_enriched AS (
