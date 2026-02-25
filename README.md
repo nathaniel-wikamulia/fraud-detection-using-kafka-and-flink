@@ -242,6 +242,7 @@ d = 2r \cdot \arcsin\left(
 $$
 
 Where:
+- $d$ = distance between the two points along a great circle of the sphere
 - $r$ = radius of the sphere
 - $\varphi_1$ = latitude of point 1  
 - $\varphi_2$ = latitude of point 2  
