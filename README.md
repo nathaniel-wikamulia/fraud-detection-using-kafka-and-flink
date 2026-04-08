@@ -54,7 +54,8 @@ To create the connector, follow the steps below:
 10. Below the "Select output record value format" section, choose "AVRO".
 11. For the "Select a schema" section, click on the "Provide your own schema" button.
 12. Paste the following schema query into an empty cell:
-```{
+```
+{
   "type": "record",
   "name": "transactionstream",
   "namespace": "transaction.demo",
