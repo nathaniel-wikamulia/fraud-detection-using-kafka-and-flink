@@ -134,11 +134,12 @@ Now that the "transactions_topic" topic is filled with messages, we can start cr
 A Flink compute pool in Confluent Cloud for Apache Flink represents a set of compute resources bound to a region that is used to run your SQL statements. The resources provided by a compute pool are shared between all statements that use it. The capacity of a compute pool is measured in CFUs.
 To create an Flink compute pool, you can follow the steps below:
 1. In the left-hand menu, select "Flink".
-2. Click the "Add compute pool" button on the right side of the page.
-3. Choose your preferred cloud provider. For this workshop, we'll use "Azure", and for the region, we'll choose Jakarta. Please note that the Flink compute pool must match the Kafka cluster's region.
-4. Enter a name for your compute pool. For this workshop, we’ll use "fraud_detection_flink_compute_pool".
-5. Set the "Max size" value to 10 CFU.
-6. Click the "Create" button to create your compute pool.
+2. Click the "Compute pools" tab.
+3. Click the "Add compute pool" button on the right side of the page.
+4. Choose your preferred cloud provider. For this workshop, we'll use "AWS", and for the region, we'll choose Jakarta. Please note that the Flink compute pool must match the Kafka cluster's region.
+5. Enter a name for your compute pool. For this workshop, we’ll use "fraud_detection_flink_compute_pool".
+6. Set the "Max size" value to 10 CFU.
+7. Click the "Create" button to create your compute pool.
 
 ## Section 6 - Prepare a Flink Workspace
 Once the Flink compute pool has been provisioned, you can setup a Flink SQL workspace where you will be writing your Flink queries. Follow the steps below to get started:
